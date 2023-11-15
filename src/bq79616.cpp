@@ -45,9 +45,11 @@ void Wake79616(void) {
     // sciREG->GCR1 &= ~(1U << 7U); // put SCI into reset
     // sciREG->PIO0 &= ~(1U << 2U); // disable transmit function - now a GPIO
     // sciREG->PIO3 &= ~(1U << 2U); // set output to low
-    Serial1.write((char)0x0);
+    // Serial1.write((char)0x0);
+    digitalWrite(0, LOW);
+    delay(2); // WAKE ping = 2.5ms to 3ms
+    digitalWrite(0, HIGH);
 
-    delayus(2700); // WAKE ping = 2.5ms to 3ms
     // sciInit();
     // sciSetBaudrate(sciREG, BAUDRATE);
 }
@@ -76,8 +78,11 @@ void HWRST79616(void) {
     // sciREG->GCR1 &= ~(1U << 7U); // put SCI into reset
     // sciREG->PIO0 &= ~(1U << 2U); // disable transmit function - now a GPIO
     // sciREG->PIO3 &= ~(1U << 2U); // set output to low
+    digitalWrite(0, LOW);
+    delay(4);
+    digitalWrite(0, HIGH);
 
-    delayus(36000); // StA ping = 36ms
+    // delayus(36000); // StA ping = 36ms
     // sciInit();
     // sciSetBaudrate(sciREG, BAUDRATE);
 }
@@ -524,8 +529,8 @@ int ReadReg(char bID, uint16_t wAddr, char * pData, char bLen, uint32_t dwTimeOu
         // sciEnableNotification(sciREG, SCI_RX_INT);
         // sciReceive(sciREG, bLen + 6, pData);
         Serial1.readBytes(pData, bLen + 6);
-        while(UART_RX_RDY == 0U && count>0) count--; /* Wait */
-        UART_RX_RDY = 0;
+        // while(UART_RX_RDY == 0U && count>0) count--; /* Wait */
+        // UART_RX_RDY = 0;
         bRes = bLen + 6;
     } else if (bWriteType == FRMWRT_STK_R) {
         bRes = ReadFrameReq(bID, wAddr, bLen, bWriteType);
@@ -844,12 +849,13 @@ unsigned printConsole(const char *_format, ...)
    char str[128];
    int length = -1, k = 0;
 
-//    va_list argList;
-//    va_start( argList, _format );
+    
+   va_list argList;
+   va_start( argList, _format );
 
-//    length = vsnprintf(str, sizeof(str), _format, argList);
+   length = vsnprintf(str, sizeof(str), _format, argList);
 
-//    va_end( argList );
+   va_end( argList );
 
 //   if (length > 0)
 //   {
@@ -858,6 +864,8 @@ unsigned printConsole(const char *_format, ...)
 //          HetUART1PutChar(str[k]);
 //      }
 //   }
+  Serial.println(str);
+//   Serial.print()
   //  sciSend(scilinREG, length, str);
 
    return (unsigned)length;

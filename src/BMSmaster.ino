@@ -30,6 +30,8 @@
 #include "bq79616.hpp"
 #include <math.h>
 #include <stdio.h>
+#include <WiFiS3.h>
+
 // #include "Arduino.h"
 /* USER CODE END */
 
@@ -45,6 +47,19 @@
 int UART_RX_RDY = 0;
 int RTI_TIMEOUT = 0;
 
+#define SECRET_SSID "BMS_WIFI"
+#define SECRET_PASS "batteryboyz"
+
+#include "WiFiS3.h"
+
+///////please enter your sensitive data in the Secret tab/arduino_secrets.h
+char ssid[] = SECRET_SSID;        // your network SSID (name)
+char pass[] = SECRET_PASS;        // your network password (use for WPA, or use as key for WEP)
+int keyIndex = 0;                 // your network key index number (needed only for WEP)
+
+int led =  LED_BUILTIN;
+int status = WL_IDLE_STATUS;
+WiFiServer server(80);
 
 void setup()
 {
@@ -54,19 +69,41 @@ void setup()
   // sciInit();
   // rtiInit();
 
+  WiFi.config(IPAddress(192,168,0,2));
+  status = WiFi.beginAP(ssid, pass);
+  if (status != WL_AP_LISTENING) {
+    Serial.println("Creating access point failed");
+    // don't continue
+    while (true);
+  }
+
+  // wait 10 seconds for connection:
+  delay(100);
+
+  // start the web server on port 80
+  server.begin();
+
+
   // BQ_board.begin(115200);
   // sciSetBaudrate(sciREG, 1000000);
   // vimInit();
   // _enable_IRQ();
+  // pinMode(0, INPUT_PULLUP);
+  Serial.begin(9600);
   Serial1.begin(1000000, SERIAL_8N1);
+
+  Serial.print("Hello this the the BMS Code\r\n");
 
   // printConsole("\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\rBeginning Program\n\r");
   // INITIALIZE BQ79616-Q1
   Wake79616();
-  delayus((10000 + 520) * TOTALBOARDS); // 2.2ms from shutdown/POR to active mode + 520us till device can send wake tone, PER DEVICE
-  Wake79616();
-  delayus((10000 + 520) * TOTALBOARDS); // 2.2ms from shutdown/POR to active mode + 520us till device can send wake tone, PER DEVICE
-  AutoAddress2();
+  // delayus((10000 + 520) * TOTALBOARDS); // 2.2ms from shutdown/POR to active mode + 520us till device can send wake tone, PER DEVICE
+  // Wake79616();
+  // delayus((10000 + 520) * TOTALBOARDS); // 2.2ms from shutdown/POR to active mode + 520us till device can send wake tone, PER DEVICE
+
+  AutoAddress();
+  Serial.println("Autoaddress Completed");
+
   delayus(4000 - (2200 + 520)); // 4ms total required after shutdown to wake transition for AFE settling time, this is for top device only
   // WriteReg(0, FAULT_MSK2, 0x40, 1, FRMWRT_ALL_W); //OPTIONAL: MASK CUST_CRC SO CONFIG CHANGES DON'T FLAG A FAULT
   WriteReg(0, FAULT_MSK1, 0xFFFE, 2, FRMWRT_ALL_W); // INITIAL B0 SILICON: MASK FAULT_PWR SO TSREF_UV doesn't flag a fault
@@ -106,7 +143,7 @@ uint32_t raw_data = 0;
 int32_t signed_val = 0;
 long double sr_val = 0;
 char response_frame[(16 * 2 + 6) * TOTALBOARDS];    // hold all 16 vcell*_hi/lo values
-char response_frame_current[(3 + 6) * TOTALBOARDS]; // hold all 3 current_hi/mid/lo values
+char response_frame_current[8]; // hold all 3 current_hi/mid/lo values
 
 void loop()
 {
@@ -114,58 +151,65 @@ void loop()
   // RESET ITERATORS EACH LOOP
   i = 0;
   cb = 0;
-
+  // delay(10);
   // WAIT FOR GPIO TO SENSE CS_DRDY GO LOW
   //  while(BQ_board.available() == 0)
   //  {
   //      //do other things
   //  }
-
+  delay(1000);
   ///////////////////////////
   // CURRENT SENSE (EVERY 1ms)
-  ReadReg(0, CURRENT_HI, response_frame_current, 3, 0, FRMWRT_SGL_R); // 175 us
+  ReadReg(0, PARTID, response_frame_current, 2, 0, FRMWRT_SGL_R); // 175 us
+
   //        //FOR B0
-  //        raw_data = (response_frame_current[4] << 16) | (response_frame_current[5] << 8) | response_frame_current[6];
-  //        signed_val = ((raw_data & 0x800000) == 0x800000) ? (raw_data | 0xFF000000) : raw_data;
-  //        sr_val = signed_val*0.0000000146;
+  raw_data = (response_frame_current[1] << 8) | response_frame_current[0];
+  Serial.print("PARTID: ");
+  Serial.println(raw_data);
+  // signed_val = ((raw_data & 0x800000) == 0x800000) ? (raw_data | 0xFF000000) : raw_data;
+  // sr_val = signed_val*0.0000000146;
   // FOR A0
-  raw_data = (response_frame_current[4] << 8) | (response_frame_current[5]);
-  signed_val = (int16_t)raw_data;
-  sr_val = signed_val * 0.00000763;
-  current_accumulated += sr_val;
-  time_accumulated += 2; // add one current-sense reading worth of time to the time counter (1ms conversion time)
-  coulomb_accumulated = current_accumulated * (time_accumulated / 1000);
+  // raw_data = (response_frame_current[4] << 8) | (response_frame_current[5]);
+  // signed_val = (int16_t)raw_data;
+  // sr_val = signed_val * 0.00000763;
+  // current_accumulated += sr_val;
+  // time_accumulated += 2; // add one current-sense reading worth of time to the time counter (1ms conversion time)
+  // coulomb_accumulated = current_accumulated * (time_accumulated / 1000);
 
-  if (countTimer % 5 == 0)
-  {
-    ///////////////////////////
-    // VOLTAGE SENSE (EVERY 9ms, so every 5 loops of 2ms each)
-    ReadReg(0, VCELL16_HI + (16 - ACTIVECHANNELS) * 2, response_frame, ACTIVECHANNELS * 2, 0, FRMWRT_ALL_R); // 494 us
+  // if (countTimer % 5 == 0)
+  // {
+  //   ///////////////////////////
+  //   // VOLTAGE SENSE (EVERY 9ms, so every 5 loops of 2ms each)
+  //   ReadReg(0, VCELL16_HI + (16 - ACTIVECHANNELS) * 2, response_frame, ACTIVECHANNELS * 2, 0, FRMWRT_SGL_R); // 494 us
 
-    ////////////////
-    // PRINT VOLTAGES
-    printConsole("\n\r"); // start with a newline to add some extra spacing between loop
-    for (cb = 0; cb < (BRIDGEDEVICE == 1 ? TOTALBOARDS - 1 : TOTALBOARDS); cb++)
-    {
-      printConsole("BOARD %d:\t", TOTALBOARDS - cb - 1);
-      for (i = 0; i < (ACTIVECHANNELS * 2); i += 2)
-      {
-        int boardcharStart = (ACTIVECHANNELS * 2 + 6) * cb;
-        uint16_t rawData = (response_frame[boardcharStart + i + 4] << 8) | response_frame[boardcharStart + i + 5];
-        float cellVoltage = Complement(rawData, 0.00019073);
-        printConsole("%f\t", ((ACTIVECHANNELS * 2) - i) / 2, cellVoltage);
-      }
-      printConsole("\n\r"); // newline per board
-    }
-  }
+  //   ////////////////
+  //   // PRINT VOLTAGES
+  //   // Serial.println("About to print");
 
-  ///////////////////////////////
-  // PRINT CURRENT, TIME, COULOMBS
-  printConsole("Current Sense = %Le\n\r", sr_val);
-  printConsole("current_accumulated = %Le\n\r", current_accumulated);
-  printConsole("time_accumulated = %Le\n\r", time_accumulated);
-  printConsole("coulomb_accumulated = %Le\n\r", coulomb_accumulated);
-  printConsole("Current Sense hexadecimal = %x\n\r", raw_data);
+  //   printConsole("\n\r"); // start with a newline to add some extra spacing between loop
+  //   // Serial.println("printed");
+
+  //   for (cb = 0; cb < (BRIDGEDEVICE == 1 ? TOTALBOARDS - 1 : TOTALBOARDS); cb++)
+  //   {
+  //     printConsole("BOARD %d:\t", TOTALBOARDS - cb - 1);
+  //     for (i = 0; i < (ACTIVECHANNELS * 2); i += 2)
+  //     {
+  //       int boardcharStart = (ACTIVECHANNELS * 2 + 6) * cb;
+  //       uint16_t rawData = (response_frame[boardcharStart + i + 4] << 8) | response_frame[boardcharStart + i + 5];
+  //       float cellVoltage = Complement(rawData, 0.00019073);
+  //       printConsole("%f\t", ((ACTIVECHANNELS * 2) - i) / 2, cellVoltage);
+  //     }
+  //     printConsole("\n\r"); // newline per board
+  //   }
+  // }
+
+  // ///////////////////////////////
+  // // PRINT CURRENT, TIME, COULOMBS
+  // printConsole("PARTID = %Le\n\r", sr_val);
+  // printConsole("current_accumulated = %Le\n\r", current_accumulated);
+  // printConsole("time_accumulated = %Le\n\r", time_accumulated);
+  // printConsole("coulomb_accumulated = %Le\n\r", coulomb_accumulated);
+  // printConsole("Current Sense hexadecimal = %x\n\r", raw_data);
 
   countTimer += 1;
 }

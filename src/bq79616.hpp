@@ -34,7 +34,7 @@
 
 // User defines
 #define TOTALBOARDS 1       //boards in stack
-#define ACTIVECHANNELS 14   //channels to activate (incomplete, does not work right now)
+#define ACTIVECHANNELS 6   //channels to activate (incomplete, does not work right now)
 #define BRIDGEDEVICE 0   //
 #define MAXcharS (16*2)     //maximum number of chars to be read from the devices (for array creation)
 #define BAUDRATE 1000000    //device + uC baudrate
