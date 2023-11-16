@@ -61,15 +61,20 @@ int led =  LED_BUILTIN;
 int status = WL_IDLE_STATUS;
 WiFiUDP udp_sender;
 char UDP_Buffer[200];
+uint16_t cell_voltages[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
 
 void setup()
 {
+
+  // WiFi.config(IPAddress(192,168,137,2), IPAddress(8,8,8,8), IPAddress(192,168,137,1), IPAddress(255,255,255,0));
 
   Serial.begin(9600);
   Serial1.begin(1000000, SERIAL_8N1);
 
   Serial.print("Hello this the the BMS Code\r\n");
-
+  // HWRST79616();
+  // delay(15);
 
   Wake79616();
   delayMicroseconds((10000 + 520) * TOTALBOARDS); // 2.2ms from shutdown/POR to active mode + 520us till device can send wake tone, PER DEVICE
@@ -112,6 +117,7 @@ void setup()
 
   //clear the write buffer
   memset(UDP_Buffer, 0, sizeof(UDP_Buffer));
+  // memset(cell_voltages, 0, sizeof(cell_voltages));
 
 }
 
@@ -126,16 +132,21 @@ int32_t signed_val = 0;
 long double sr_val = 0;
 char response_frame[(16 * 2 + 6) * TOTALBOARDS];    // hold all 16 vcell*_hi/lo values
 char response_frame_current[(MAXcharS+6)]; //
-uint16_t cell_voltages[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
 
 void loop()
 {
   
   if(status == WL_CONNECTED){
-    udp_sender.beginPacket(IPAddress(192,168,0,2), 10000);
-    udp_sender.write(UDP_Buffer);
-    udp_sender.endPacket();
+    int ret = udp_sender.beginPacket(IPAddress(192,168,137,1), 10000);
+    if(ret == 0)
+      Serial.println("Error beginning packet");
+    else{
+      udp_sender.write(UDP_Buffer, 100);
+      ret = udp_sender.endPacket();
+      if(ret == 0)
+        Serial.println("Error sending packet");
+    }
   }
   else{
     Serial.print("Attempting to connect to SSID: ");
@@ -143,24 +154,24 @@ void loop()
     // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
     status = WiFi.begin(ssid, pass);
     // wait 10 seconds for connection:
-    delay(100);
+    delay(1);
   }
 
   // RESET ITERATORS EACH LOOP
   i = 0;
   cb = 0;
 
-  delay(100);
+  delay(500);
 
 
-  ReadReg(0, PARTID, response_frame_current, 1, 0, FRMWRT_SGL_R); // 175 us
-  // PrintFrame(response_frame_current, 8);
-  // FOR A0
-  raw_data = (response_frame_current[4] << 8) | (response_frame_current[5]);
-  signed_val = (int16_t)raw_data;
-  // sr_val = signed_val * 0.00000763;
-  Serial.print("PARTID: ");
-  Serial.println(signed_val);
+  // ReadReg(0, PARTID, response_frame_current, 1, 0, FRMWRT_SGL_R); // 175 us
+  // // PrintFrame(response_frame_current, 8);
+  // // FOR A0
+  // raw_data = (response_frame_current[1] << 8) | (response_frame_current[0]);
+  // signed_val = (int16_t)raw_data;
+  // // sr_val = signed_val * 0.00000763;
+  // Serial.print("PARTID: ");
+  // Serial.println(signed_val);
 
   
   // VOLTAGE SENSE (EVERY 9ms, so every 5 loops of 2ms each)
@@ -175,7 +186,7 @@ void loop()
       uint16_t rawData = (response_frame[boardcharStart + i + 4] << 8) | response_frame[boardcharStart + i + 5];
       cell_voltages[int(i / 2)] = round(Complement(rawData, 0.00019073) * 100);
       // float cellVoltage = Complement(rawData, 0.00019073);
-      printConsole("%f\t", ((ACTIVECHANNELS * 2) - i) / 2, cell_voltages[int(i / 2)]);
+      printConsole("%hu ", cell_voltages[int(i / 2)]);
     }
     printConsole("\n\r"); // newline per board
   }

@@ -48,11 +48,11 @@ void Wake79616(void) {
     // Serial1.write((char)0x0);
     Serial1.end();
     delay(1);
-    pinMode(0, OUTPUT);
-    digitalWrite(0, LOW);
-    delayMicroseconds(2750); // WAKE ping = 2.5ms to 3ms
-    digitalWrite(0, HIGH);
-
+    pinMode(1, OUTPUT);
+    digitalWrite(1, LOW);
+    delayMicroseconds(2250); // WAKE ping = 2.5ms to 3ms
+    digitalWrite(1, HIGH);
+    delay(1);
     Serial1.begin(1000000);
     delay(1);
 
@@ -68,11 +68,11 @@ void SD79616(void) {
     // delayMicroseconds(9000); 
     Serial1.end();
     delay(1);
-    pinMode(0, OUTPUT);
-    digitalWrite(0, LOW);
+    pinMode(1, OUTPUT);
+    digitalWrite(1, LOW);
     delay(10); /// SD ping = 9ms to 13ms
-    digitalWrite(0, HIGH);
-
+    digitalWrite(1, HIGH);
+    delay(1);
     Serial1.begin(1000000);
     delay(1);
     // sciInit();
@@ -87,11 +87,11 @@ void StA79616(void) {
     // delayMicroseconds(250); 
     Serial1.end();
     delay(1);
-    pinMode(0, OUTPUT);
-    digitalWrite(0, LOW);
+    pinMode(1, OUTPUT);
+    digitalWrite(1, LOW);
     delayMicroseconds(250); // delayMicroseconds(250); 
-    digitalWrite(0, HIGH);
-
+    digitalWrite(1, HIGH);
+    delay(1);
     Serial1.begin(1000000);
     delay(1);
     // sciInit();
@@ -104,11 +104,11 @@ void HWRST79616(void) {
     // sciREG->PIO3 &= ~(1U << 2U); // set output to low
     Serial1.end();
     delay(1);
-    pinMode(0, OUTPUT);
-    digitalWrite(0, LOW);
+    pinMode(1, OUTPUT);
+    digitalWrite(1, LOW);
     delayMicroseconds(36000); // HWRESET = 36ms
-    digitalWrite(0, HIGH);
-
+    digitalWrite(1, HIGH);
+    delay(1);
     Serial1.begin(1000000);
     delay(1);
 
@@ -578,27 +578,27 @@ int ReadReg(char bID, uint16_t wAddr, char * pData, char bLen, uint32_t dwTimeOu
         bRes = 0;
     }
 
-   //CHECK IF CRC IS CORRECT
-//    for(crc_i=0; crc_i<bRes; crc_i+=(bLen+6))
-//    {
-//        if(CRC16(&pData[crc_i], bLen+6)!=0)
-//        {
-//            printConsole("\n\rBAD CRC=%04X,i=%d,bLen=%d\n\r",(pData[crc_i+bLen+4]<<8|pData[crc_i+bLen+5]),crc_i,bLen);
-//            PrintFrame(pData, bLen);
-//        }
-//    }
-//    crc_i = 0;
-//    currCRC = pData;
-//    for(crc_i=0; crc_i<bRes; crc_i+=(bLen+6))
-//    {
-//        printConsole("%x",&currCRC);
-//        if(CRC16(currCRC, bLen+6)!=0)
-//        {
-//            printConsole("\n\rBAD CRC=%04X,char=%d\n\r",(currCRC[bLen+4]<<8|currCRC[bLen+5]),crc_i);
-//            PrintFrame(pData, bLen);
-//        }
-//        *currCRC+=(bLen+6);
-//    }
+//    CHECK IF CRC IS CORRECT
+   for(crc_i=0; crc_i<bRes; crc_i+=(bLen+6))
+   {
+       if(CRC16(&pData[crc_i], bLen+6)!=0)
+       {
+           printConsole("\n\rBAD CRC=%04X,i=%d,bLen=%d\n\r",(pData[crc_i+bLen+4]<<8|pData[crc_i+bLen+5]),crc_i,bLen);
+           PrintFrame(pData, bLen);
+       }
+   }
+   crc_i = 0;
+   currCRC = pData;
+   for(crc_i=0; crc_i<bRes; crc_i+=(bLen+6))
+   {
+    //    printConsole("%x",&currCRC);
+       if(CRC16(currCRC, bLen+6)!=0)
+       {
+           printConsole("\n\rBAD CRC=%04X,char=%d\n\r",(currCRC[bLen+4]<<8|currCRC[bLen+5]),crc_i);
+           PrintFrame(pData, bLen);
+       }
+       *currCRC+=(bLen+6);
+   }
 
     return bRes;
 }
