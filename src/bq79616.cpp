@@ -26,7 +26,7 @@ int bRes = 0;
 int count = 10000;
 char bBuf[8];
 char pFrame[64];
-static volatile unsigned int delayval = 0; //for delayms and delayus functions
+static volatile unsigned int delayval = 0; //for delay and delayMicroseconds functions
 extern int UART_RX_RDY;
 extern int RTI_TIMEOUT;
 int topFoundBoard = 0;
@@ -47,7 +47,7 @@ void Wake79616(void) {
     // sciREG->PIO3 &= ~(1U << 2U); // set output to low
     // Serial1.write((char)0x0);
     digitalWrite(0, LOW);
-    delay(2); // WAKE ping = 2.5ms to 3ms
+    delayMicroseconds(2750); // WAKE ping = 2.5ms to 3ms
     digitalWrite(0, HIGH);
 
     // sciInit();
@@ -59,7 +59,7 @@ void SD79616(void) {
     // sciREG->PIO0 &= ~(1U << 2U); // disable transmit function - now a GPIO
     // sciREG->PIO3 &= ~(1U << 2U); // set output to low
 
-    delayus(9000); // SD ping = 9ms to 13ms
+    delayMicroseconds(9000); // SD ping = 9ms to 13ms
     // sciInit();
     // sciSetBaudrate(sciREG, BAUDRATE);
 }
@@ -69,7 +69,7 @@ void StA79616(void) {
     // sciREG->PIO0 &= ~(1U << 2U); // disable transmit function - now a GPIO
     // sciREG->PIO3 &= ~(1U << 2U); // set output to low
 
-    delayus(250); // StA ping = 250us to 300us
+    delayMicroseconds(250); // StA ping = 250us to 300us
     // sciInit();
     // sciSetBaudrate(sciREG, BAUDRATE);
 }
@@ -79,10 +79,10 @@ void HWRST79616(void) {
     // sciREG->PIO0 &= ~(1U << 2U); // disable transmit function - now a GPIO
     // sciREG->PIO3 &= ~(1U << 2U); // set output to low
     digitalWrite(0, LOW);
-    delay(4);
+    delayMicroseconds(3600);
     digitalWrite(0, HIGH);
 
-    // delayus(36000); // StA ping = 36ms
+    // delayMicroseconds(36000); // StA ping = 36ms
     // sciInit();
     // sciSetBaudrate(sciREG, BAUDRATE);
 }
@@ -112,11 +112,11 @@ void AutoAddress2()
     {
         //SEND NORMAL WAKE PING
         Wake79616();
-        delayus( (10000+520)*TOTALBOARDS ); //2.2ms from shutdown/POR to active mode + 520us till device can send wake tone, PER DEVICE
+        delayMicroseconds( (10000+520)*TOTALBOARDS ); //2.2ms from shutdown/POR to active mode + 520us till device can send wake tone, PER DEVICE
 
         //DISABLE COMM LINES
         WriteReg(0, DEBUG_CTRL_UNLOCK, 0xA50500, 3, FRMWRT_ALL_W); //unlock comm ctrl registers, disable all comms, enable USER_DAISY_EN
-        delayms(5); //CHANGE - wait for COMM to disable
+        delay(5); //CHANGE - wait for COMM to disable
 
         //CHECK IF BASE DEVICE IS READING BACK
         memset(response_frame2,0,sizeof(response_frame2));
@@ -146,7 +146,7 @@ void AutoAddress2()
         //SEND WAKE TONE FROM THE HIGHEST DEVICE THAT RESPONDED
         WriteReg(topFoundBoard, CONTROL1, 0x20, 1, FRMWRT_SGL_W);
         //WAIT THE REQUIRED TIME FOR WAKE TRANSITION PER REMAINING BOARD
-        delayus( (2200+520)*TOTALBOARDS ); //2.2ms from shutdown/POR to active mode + 520us till device can send wake tone, PER DEVICE
+        delayMicroseconds( (2200+520)*TOTALBOARDS ); //2.2ms from shutdown/POR to active mode + 520us till device can send wake tone, PER DEVICE
 
         //AUTO ADDRESS ATTEMPT FOR EVERYONE
 
@@ -202,7 +202,7 @@ void AutoAddress2()
     {
         //BROADCAST WRITE OTP RELOAD USING MARGIN_GO
         WriteReg(0, DIAG_OTP_CTRL, 0x01, 1, FRMWRT_ALL_W);
-        delayms(3); //load time + CRC compute
+        delay(3); //load time + CRC compute
 
         //AUTO-ADDRESS AGAIN
         //ENABLE AUTO ADDRESSING MODE
@@ -238,8 +238,8 @@ void AutoAddress2()
         ReadReg(0, FAULT_OTP, response_frame2, 1, 0, FRMWRT_ALL_R);
         for(currentBoard=0; currentBoard<TOTALBOARDS; currentBoard++)
         {
-            //printf("board %d fault_sum = %02x\t",currentBoard,fault_frame[currentBoard*7+4]);
-            //printf("board %d fault_otp = %02x\n",currentBoard,response_frame2[currentBoard*7+4]);
+            //Serial.println("board %d fault_sum = %02x\t",currentBoard,fault_frame[currentBoard*7+4]);
+            //Serial.println("board %d fault_otp = %02x\n",currentBoard,response_frame2[currentBoard*7+4]);
             if((fault_frame[currentBoard*7+4] & 0x20 == 0x20) && (response_frame2[currentBoard*7+4] & 0x02 != 0x02))
             {
                 printConsole("ERROR: DIAGMARGIN FAILED - FAULT_SUMMARY[FAULT_OTP] NONZERO, BOARD %d FAULT_SUMMARY = %02x, FAULT_OTP = %02x\n",TOTALBOARDS-currentBoard-1,fault_frame[currentBoard*7+4],response_frame2[currentBoard*7+4]);
@@ -290,7 +290,7 @@ void AutoAddress()
     for(currentBoard=0; currentBoard<TOTALBOARDS; currentBoard++)
     {
         ReadReg(currentBoard, DIR0_ADDR, response_frame2, 1, 0, FRMWRT_SGL_R);
-        //printf("board %d\n",response_frame2[4]);
+        //Serial.println("board %d\n",response_frame2[4]);
     }
 
     //RESET ANY COMM FAULT CONDITIONS FROM STARTUP
@@ -480,7 +480,8 @@ int WriteFrame(char bID, uint16_t wAddr, char * pData, char bLen, char bWriteTyp
 	//THIS SEEMS to occasionally drop chars from the frame. Sometimes is not sending the last frame of the CRC.
 	//(Seems to be caused by stack overflow, so take precautions to reduce stack usage in function calls)
 	// sciSend(sciREG, bPktLen, pFrame);
-  Serial1.write(pFrame, bPktLen);
+    Serial1.write(pFrame, bPktLen);
+    delay(1);
 
 	return bPktLen;
 }
@@ -555,26 +556,26 @@ int ReadReg(char bID, uint16_t wAddr, char * pData, char bLen, uint32_t dwTimeOu
     }
 
    //CHECK IF CRC IS CORRECT
-   for(crc_i=0; crc_i<bRes; crc_i+=(bLen+6))
-   {
-       if(CRC16(&pData[crc_i], bLen+6)!=0)
-       {
-           printConsole("\n\rBAD CRC=%04X,i=%d,bLen=%d\n\r",(pData[crc_i+bLen+4]<<8|pData[crc_i+bLen+5]),crc_i,bLen);
-           PrintFrame(pData, bLen);
-       }
-   }
-   crc_i = 0;
-   currCRC = pData;
-   for(crc_i=0; crc_i<bRes; crc_i+=(bLen+6))
-   {
-       printConsole("%x",&currCRC);
-       if(CRC16(currCRC, bLen+6)!=0)
-       {
-           printConsole("BAD CRC=%04X,char=%d\n\r",(currCRC[bLen+4]<<8|currCRC[bLen+5]),crc_i);
-           PrintFrame(pData, bLen);
-       }
-       *currCRC+=(bLen+6);
-   }
+//    for(crc_i=0; crc_i<bRes; crc_i+=(bLen+6))
+//    {
+//        if(CRC16(&pData[crc_i], bLen+6)!=0)
+//        {
+//            printConsole("\n\rBAD CRC=%04X,i=%d,bLen=%d\n\r",(pData[crc_i+bLen+4]<<8|pData[crc_i+bLen+5]),crc_i,bLen);
+//            PrintFrame(pData, bLen);
+//        }
+//    }
+//    crc_i = 0;
+//    currCRC = pData;
+//    for(crc_i=0; crc_i<bRes; crc_i+=(bLen+6))
+//    {
+//        printConsole("%x",&currCRC);
+//        if(CRC16(currCRC, bLen+6)!=0)
+//        {
+//            printConsole("\n\rBAD CRC=%04X,char=%d\n\r",(currCRC[bLen+4]<<8|currCRC[bLen+5]),crc_i);
+//            PrintFrame(pData, bLen);
+//        }
+//        *currCRC+=(bLen+6);
+//    }
 
     return bRes;
 }
@@ -661,63 +662,6 @@ bool GetFaultStat() {
     return 0;
 }
 
-void delayus(uint16_t us) {
-    if (us == 0)
-       return;
-    else
-    {
-        delay(us / 1000);
-    //   for(volatile int i=0; i < 8*us/2; i++) {}
-        // //CHANGE THE INTERRUPT COMPARE VALUES (PERIOD OF INTERRUPT)
-        // //Setup compare 0 value.
-        // rtiREG1->CMP[0U].COMPx = 10*us; //10 ticks of clock per microsecond, so multiply by 10
-        // //Setup update compare 0 value.
-        // rtiREG1->CMP[0U].UDCPx = 10*us;
-
-        // //ENABLE THE NOTIFICATION FOR THE PERIOD WE SET
-        // rtiEnableNotification(rtiNOTIFICATION_COMPARE0);
-
-        // //START THE COUNTER
-        // rtiStartCounter(rtiCOUNTER_BLOCK0);
-
-        // //WAIT IN LOOP UNTIL THE INTERRUPT HAPPENS (HAPPENS AFTER THE PERIOD WE SET)
-        // //WHEN INTERRUPT HAPPENS, RTI_NOTIFICATION GETS SET TO 1 IN THAT INTERRUPT
-        // //GO TO notification.c -> rtiNotification() to see where RTI_TIMEOUT is set to 1
-        // while(RTI_TIMEOUT==0);
-
-        // //RESET THE VARIABLE TO 0, FOR THE NEXT TIME WE DO A DELAY
-        // RTI_TIMEOUT = 0;
-
-        // //DISABLE THE INTERRUPT NOTIFICATION
-        // rtiDisableNotification(rtiNOTIFICATION_COMPARE0);
-
-        // //STOP THE COUNTER
-        // rtiStopCounter(rtiCOUNTER_BLOCK0);
-
-        // //RESET COUNTER FOR THE NEXT TIME WE DO A DELAY
-        // rtiResetCounter(rtiCOUNTER_BLOCK0);
-    }
-}
-
-void delayms(uint16_t ms) {
-    if (ms == 0)
-       return;
-    else
-    {
-        delay(ms);
-    //   for(volatile int i=0; i < 8*1000*ms/2; i++) {}
-        // rtiREG1->CMP[0U].COMPx = 10000*ms;
-        // rtiREG1->CMP[0U].UDCPx = 10000*ms;
-        // rtiEnableNotification(rtiNOTIFICATION_COMPARE0);
-        // rtiStartCounter(rtiCOUNTER_BLOCK0);
-        // while(RTI_TIMEOUT==0);
-        // RTI_TIMEOUT = 0;
-        // rtiDisableNotification(rtiNOTIFICATION_COMPARE0);
-        // rtiStopCounter(rtiCOUNTER_BLOCK0);
-        // rtiResetCounter(rtiCOUNTER_BLOCK0);
-    }
-}
-
 void ResetAllFaults(char bID, char bWriteType)
 {
     if(bWriteType==FRMWRT_ALL_W)
@@ -739,7 +683,7 @@ void ResetAllFaults(char bID, char bWriteType)
     }
     else
     {
-        printf("ERROR: ResetAllFaults bWriteType incorrect\n");
+        Serial.println("ERROR: ResetAllFaults bWriteType incorrect\n");
     }
 }
 
@@ -759,7 +703,7 @@ void MaskAllFaults(char bID, char bWriteType)
     }
     else
     {
-        printf("ERROR: MaskAllFaults bWriteType incorrect\n");
+        Serial.println("ERROR: MaskAllFaults bWriteType incorrect\n");
     }
 }
 
@@ -864,7 +808,7 @@ unsigned printConsole(const char *_format, ...)
 //          HetUART1PutChar(str[k]);
 //      }
 //   }
-  Serial.println(str);
+  Serial.print(str);
 //   Serial.print()
   //  sciSend(scilinREG, length, str);
 

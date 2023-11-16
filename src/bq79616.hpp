@@ -71,8 +71,8 @@ int  ReadFrameReq(char bID, uint16_t wAddr, char bcharToReturn,char bWriteType);
 int  ReadFrameReqBad(char bID, uint16_t wAddr, char bcharToReturn);
 int  WaitRespFrame(char *pFrame, uint32_t bLen, uint32_t dwTimeOut);
 
-void delayms(uint16_t ms);
-void delayus(uint16_t us);
+// void delayms(uint16_t ms);
+// void delayus(uint16_t us);
 
 void ResetAllFaults(char bID, char bWriteType);
 void MaskAllFaults(char bID, char bWriteType);
