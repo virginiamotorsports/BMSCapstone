@@ -2,6 +2,7 @@
     "files.associations": {
         "r7fa4m1ab.h": "c",
         "bq79616.h": "c",
-        "uart.h": "c"
+        "uart.h": "c",
+        "*.tcc": "cpp"
     }
 }

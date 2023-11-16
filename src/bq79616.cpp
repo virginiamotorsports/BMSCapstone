@@ -46,9 +46,15 @@ void Wake79616(void) {
     // sciREG->PIO0 &= ~(1U << 2U); // disable transmit function - now a GPIO
     // sciREG->PIO3 &= ~(1U << 2U); // set output to low
     // Serial1.write((char)0x0);
+    Serial1.end();
+    delay(1);
+    pinMode(0, OUTPUT);
     digitalWrite(0, LOW);
     delayMicroseconds(2750); // WAKE ping = 2.5ms to 3ms
     digitalWrite(0, HIGH);
+
+    Serial1.begin(1000000);
+    delay(1);
 
     // sciInit();
     // sciSetBaudrate(sciREG, BAUDRATE);
@@ -59,7 +65,16 @@ void SD79616(void) {
     // sciREG->PIO0 &= ~(1U << 2U); // disable transmit function - now a GPIO
     // sciREG->PIO3 &= ~(1U << 2U); // set output to low
 
-    delayMicroseconds(9000); // SD ping = 9ms to 13ms
+    // delayMicroseconds(9000); 
+    Serial1.end();
+    delay(1);
+    pinMode(0, OUTPUT);
+    digitalWrite(0, LOW);
+    delay(10); /// SD ping = 9ms to 13ms
+    digitalWrite(0, HIGH);
+
+    Serial1.begin(1000000);
+    delay(1);
     // sciInit();
     // sciSetBaudrate(sciREG, BAUDRATE);
 }
@@ -69,7 +84,16 @@ void StA79616(void) {
     // sciREG->PIO0 &= ~(1U << 2U); // disable transmit function - now a GPIO
     // sciREG->PIO3 &= ~(1U << 2U); // set output to low
 
-    delayMicroseconds(250); // StA ping = 250us to 300us
+    // delayMicroseconds(250); 
+    Serial1.end();
+    delay(1);
+    pinMode(0, OUTPUT);
+    digitalWrite(0, LOW);
+    delayMicroseconds(250); // delayMicroseconds(250); 
+    digitalWrite(0, HIGH);
+
+    Serial1.begin(1000000);
+    delay(1);
     // sciInit();
     // sciSetBaudrate(sciREG, BAUDRATE);
 }
@@ -78,21 +102,20 @@ void HWRST79616(void) {
     // sciREG->GCR1 &= ~(1U << 7U); // put SCI into reset
     // sciREG->PIO0 &= ~(1U << 2U); // disable transmit function - now a GPIO
     // sciREG->PIO3 &= ~(1U << 2U); // set output to low
+    Serial1.end();
+    delay(1);
+    pinMode(0, OUTPUT);
     digitalWrite(0, LOW);
-    delayMicroseconds(3600);
+    delayMicroseconds(36000); // HWRESET = 36ms
     digitalWrite(0, HIGH);
+
+    Serial1.begin(1000000);
+    delay(1);
 
     // delayMicroseconds(36000); // StA ping = 36ms
     // sciInit();
     // sciSetBaudrate(sciREG, BAUDRATE);
 }
-
-// void readNumBytes(char* inputF, int len){
-//     while(len > 0){
-//         *input = Serial1.readBytes()
-//         len--;
-//     }
-// }
 
 //**********
 //END PINGS
