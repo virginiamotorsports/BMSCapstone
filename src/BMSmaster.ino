@@ -70,7 +70,7 @@ void setup()
   // WiFi.config(IPAddress(192,168,137,2), IPAddress(8,8,8,8), IPAddress(192,168,137,1), IPAddress(255,255,255,0));
 
   Serial.begin(9600);
-  Serial1.begin(1000000, SERIAL_8N1);
+  Serial1.begin(BAUDRATE, SERIAL_8N1);
 
   Serial.print("Hello this the the BMS Code\r\n");
   // HWRST79616();

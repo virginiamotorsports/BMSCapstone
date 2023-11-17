@@ -53,7 +53,7 @@ void Wake79616(void) {
     delayMicroseconds(2250); // WAKE ping = 2.5ms to 3ms
     digitalWrite(1, HIGH);
     delay(1);
-    Serial1.begin(1000000);
+    Serial1.begin(BAUDRATE);
     delay(1);
 
     // sciInit();
@@ -73,7 +73,7 @@ void SD79616(void) {
     delay(10); /// SD ping = 9ms to 13ms
     digitalWrite(1, HIGH);
     delay(1);
-    Serial1.begin(1000000);
+    Serial1.begin(BAUDRATE);
     delay(1);
     // sciInit();
     // sciSetBaudrate(sciREG, BAUDRATE);
@@ -92,7 +92,7 @@ void StA79616(void) {
     delayMicroseconds(250); // delayMicroseconds(250); 
     digitalWrite(1, HIGH);
     delay(1);
-    Serial1.begin(1000000);
+    Serial1.begin(BAUDRATE);
     delay(1);
     // sciInit();
     // sciSetBaudrate(sciREG, BAUDRATE);
@@ -109,7 +109,7 @@ void HWRST79616(void) {
     delayMicroseconds(36000); // HWRESET = 36ms
     digitalWrite(1, HIGH);
     delay(1);
-    Serial1.begin(1000000);
+    Serial1.begin(BAUDRATE);
     delay(1);
 
     // delayMicroseconds(36000); // StA ping = 36ms
