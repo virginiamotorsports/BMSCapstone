@@ -31,6 +31,9 @@
 #include <math.h>
 #include <stdio.h>
 #include <WiFiS3.h>
+#include <Arduino_CAN.h>
+#include "can_helpers.hpp"
+#include "BMSFSM.hpp"
 
 // #include "Arduino.h"
 /* USER CODE END */
@@ -50,7 +53,7 @@ int RTI_TIMEOUT = 0;
 #define SECRET_SSID "BMS_WIFI"
 #define SECRET_PASS "batteryboyz"
 
-#include "WiFiS3.h"
+
 
 ///////please enter your sensitive data in the Secret tab/arduino_secrets.h
 char ssid[] = SECRET_SSID;        // your network SSID (name)
@@ -63,7 +66,6 @@ WiFiUDP udp_sender;
 char UDP_Buffer[200];
 uint16_t cell_voltages[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
-
 void setup()
 {
 
@@ -71,6 +73,7 @@ void setup()
 
   Serial.begin(9600);
   Serial1.begin(BAUDRATE, SERIAL_8N1);
+  CAN.begin(CanBitRate::BR_1000k);
 
   Serial.print("Hello this the the BMS Code\r\n");
   // HWRST79616();
@@ -117,6 +120,8 @@ void setup()
 
   //clear the write buffer
   memset(UDP_Buffer, 0, sizeof(UDP_Buffer));
+  memset(message_data, 0, sizeof(message_data[0][0]) * message_data_width * 8);
+
   // memset(cell_voltages, 0, sizeof(cell_voltages));
 
 }

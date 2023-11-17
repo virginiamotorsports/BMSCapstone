@@ -3,6 +3,15 @@
         "r7fa4m1ab.h": "c",
         "bq79616.h": "c",
         "uart.h": "c",
-        "*.tcc": "cpp"
+        "*.tcc": "cpp",
+        "optional": "cpp",
+        "ostream": "cpp",
+        "system_error": "cpp",
+        "array": "cpp",
+        "functional": "cpp",
+        "tuple": "cpp",
+        "type_traits": "cpp",
+        "utility": "cpp",
+        "cmath": "cpp"
     }
 }
