@@ -65,6 +65,18 @@ int status = WL_IDLE_STATUS;
 WiFiUDP udp_sender;
 char UDP_Buffer[200];
 uint16_t cell_voltages[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+int countTimer = 0;
+int i = 0;
+int cb = 0;
+long double current_accumulated = 0;
+long double time_accumulated = 0;
+long double coulomb_accumulated = 0;
+uint32_t raw_data = 0;
+int32_t signed_val = 0;
+long double sr_val = 0;
+char response_frame[(16 * 2 + 6) * TOTALBOARDS];    // hold all 16 vcell*_hi/lo values
+char response_frame_current[(MAXcharS+6)]; //
+bool faults[8] = {false, false, false, false, false, false, false, false};
 
 void setup()
 {
@@ -90,77 +102,45 @@ void setup()
   AutoAddress();
   // AutoAddress2();
   Serial.println("Autoaddress Completed");
-
-  delayMicroseconds(4000 - (2200 + 520)); // 4ms total required after shutdown to wake transition for AFE settling time, this is for top device only
-  WriteReg(0, FAULT_MSK2, 0x40, 1, FRMWRT_ALL_W); //OPTIONAL: MASK CUST_CRC SO CONFIG CHANGES DON'T FLAG A FAULT
-  WriteReg(0, FAULT_MSK1, 0xFFFE, 2, FRMWRT_ALL_W); // INITIAL B0 SILICON: MASK FAULT_PWR SO TSREF_UV doesn't flag a fault
-  ResetAllFaults(0, FRMWRT_ALL_W);
-
-  // VARIABLES
-
-  // ARRAYS (MUST place out of loop so not re-allocated every iteration)
-
-  // ENABLE TSREF
-  WriteReg(0, CONTROL2, 0x01, 1, FRMWRT_ALL_W); // enable TSREF
-  delay(10);                                  // wait for TSREF to fully enable on all boards
-
-  // CONFIGURE GPIO1 as CS ADC conversion toggle function
-  WriteReg(0, GPIO_CONF2, 0x40, 1, FRMWRT_ALL_W); // GPIO1 as CS ADC conversion toggle function
-
-  // CONFIGURE THE MAIN ADC
-  WriteReg(0, ACTIVE_CELL, ACTIVECHANNELS - 6, 1, FRMWRT_ALL_W); // set all cells to active
-  WriteReg(0, ADC_CONF1, 0x04, 1, FRMWRT_ALL_W);                 // LPF_ON - LPF = 9ms
-
-  // CLEAR FAULTS AND UPDATE CUST_CRC
-  ResetAllFaults(0, FRMWRT_ALL_W); // CLEAR ALL FAULTS
-  delay(100);                    // visual separation for logic analyzer
-
-  // START THE MAIN ADC
-  WriteReg(0, ADC_CTRL1, 0x2E, 1, FRMWRT_ALL_W); // continuous run and MAIN_GO and LPF_VCELL_EN and CS_DR = 1ms
+  
+  set_registers();
 
   //clear the write buffer
   memset(UDP_Buffer, 0, sizeof(UDP_Buffer));
+  memset(response_frame_current, 0, sizeof(response_frame_current));
+  memset(response_frame, 0, sizeof(response_frame));
   memset(message_data, 0, sizeof(message_data[0][0]) * message_data_width * 8);
 
   // memset(cell_voltages, 0, sizeof(cell_voltages));
 
 }
 
-int countTimer = 0;
-int i = 0;
-int cb = 0;
-long double current_accumulated = 0;
-long double time_accumulated = 0;
-long double coulomb_accumulated = 0;
-uint32_t raw_data = 0;
-int32_t signed_val = 0;
-long double sr_val = 0;
-char response_frame[(16 * 2 + 6) * TOTALBOARDS];    // hold all 16 vcell*_hi/lo values
-char response_frame_current[(MAXcharS+6)]; //
+
+
 
 
 void loop()
 {
   
-  if(status == WL_CONNECTED){
-    int ret = udp_sender.beginPacket(IPAddress(192,168,137,1), 10000);
-    if(ret == 0)
-      Serial.println("Error beginning packet");
-    else{
-      udp_sender.write(UDP_Buffer, 100);
-      ret = udp_sender.endPacket();
-      if(ret == 0)
-        Serial.println("Error sending packet");
-    }
-  }
-  else{
-    Serial.print("Attempting to connect to SSID: ");
-    Serial.println(ssid);
-    // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
-    status = WiFi.begin(ssid, pass);
-    // wait 10 seconds for connection:
-    delay(1);
-  }
+  // if(status == WL_CONNECTED){
+  //   int ret = udp_sender.beginPacket(IPAddress(192,168,137,1), 10000);
+  //   if(ret == 0)
+  //     Serial.println("Error beginning packet");
+  //   else{
+  //     udp_sender.write(UDP_Buffer, 100);
+  //     ret = udp_sender.endPacket();
+  //     if(ret == 0)
+  //       Serial.println("Error sending packet");
+  //   }
+  // }
+  // else{
+  //   Serial.print("Attempting to connect to SSID: ");
+  //   Serial.println(ssid);
+  //   // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
+  //   status = WiFi.begin(ssid, pass);
+  //   // wait 10 seconds for connection:
+  //   delay(1);
+  // }
 
   // RESET ITERATORS EACH LOOP
   i = 0;
@@ -169,22 +149,44 @@ void loop()
   delay(500);
 
 
-  // ReadReg(0, PARTID, response_frame_current, 1, 0, FRMWRT_SGL_R); // 175 us
-  // // PrintFrame(response_frame_current, 8);
+  ReadReg(0, FAULT_SUMMARY, response_frame_current, 1, 0, FRMWRT_ALL_R); // 175 us
+  Serial.print("PROT: ");
+  Serial.print((response_frame_current[4] & 0x80));
+
+  Serial.print("\tADC: ");
+  Serial.print((response_frame_current[4] & 0x40));
+
+  Serial.print("\tOTP: ");
+  Serial.print((response_frame_current[4] & 0x20));
+
+  Serial.print("\tCOMM: ");
+  Serial.print((response_frame_current[4] & 0x10));
+
+  Serial.print("\tOTUT: ");
+  Serial.print((response_frame_current[4] & 0x08));
+
+  Serial.print("\tOVUV: ");
+  Serial.print((response_frame_current[4] & 0x04));
+
+  Serial.print("\tSYS: ");
+  Serial.print((response_frame_current[4] & 0x02));
+
+  Serial.print("\tPWR: ");
+  Serial.println((response_frame_current[4] & 0x01));
   // // FOR A0
-  // raw_data = (response_frame_current[1] << 8) | (response_frame_current[0]);
+  // raw_data = response_frame_current[4];
   // signed_val = (int16_t)raw_data;
-  // // sr_val = signed_val * 0.00000763;
+  // // // sr_val = signed_val * 0.00000763;
   // Serial.print("PARTID: ");
   // Serial.println(signed_val);
 
   
   // VOLTAGE SENSE (EVERY 9ms, so every 5 loops of 2ms each)
-  ReadReg(0, VCELL16_HI + (16 - ACTIVECHANNELS) * 2, response_frame, ACTIVECHANNELS * 2, 0, FRMWRT_SGL_R); // 494 us
+  ReadReg(0, VCELL16_HI + (16 - ACTIVECHANNELS) * 2, response_frame, ACTIVECHANNELS * 2, 0, FRMWRT_ALL_R); // 494 us
 
   for (cb = 0; cb < (BRIDGEDEVICE == 1 ? TOTALBOARDS - 1 : TOTALBOARDS); cb++)
   {
-    printConsole("BOARD %d:\t", TOTALBOARDS - cb - 1);
+    printConsole("B%d:\t", TOTALBOARDS - cb - 1);
     for (i = 0; i < (ACTIVECHANNELS * 2); i += 2)
     {
       int boardcharStart = (ACTIVECHANNELS * 2 + 6) * cb;
@@ -197,5 +199,50 @@ void loop()
   }
 
 
+
+}
+
+
+void set_registers(void){
+
+  WriteReg(0, FAULT_MSK2, 0x40, 1, FRMWRT_ALL_W); //OPTIONAL: MASK CUST_CRC SO CONFIG CHANGES DON'T FLAG A FAULT
+  WriteReg(0, FAULT_MSK1, 0xFFFE, 2, FRMWRT_ALL_W); // INITIAL B0 SILICON: MASK FAULT_PWR SO TSREF_UV doesn't flag a fault
+  ResetAllFaults(0, FRMWRT_ALL_W);
+
+  // VARIABLES
+
+  // ARRAYS (MUST place out of loop so not re-allocated every iteration)
+
+  // ENABLE TSREF
+  WriteReg(0, CONTROL2, 0x01, 1, FRMWRT_ALL_W); // enable TSREF
+
+  // CONFIGURE GPIOS as temp inputs
+  WriteReg(0, GPIO_CONF1, 0x09, 1, FRMWRT_ALL_W); // GPIO1 and 2 as temp inputs
+  WriteReg(0, GPIO_CONF2, 0x09, 1, FRMWRT_ALL_W); // GPIO3 and 4 as temp inputs
+  WriteReg(0, GPIO_CONF3, 0x09, 1, FRMWRT_ALL_W); // GPIO5 and 6 as temp inputs
+  WriteReg(0, GPIO_CONF4, 0x09, 1, FRMWRT_ALL_W); // GPIO7 and 8 as temp inputs
+
+  WriteReg(0, OTUT_THRESH, 0xDA, 1, FRMWRT_ALL_W); // Sets OV thresh to 80% and UT thresh to 20% to meet rules
+
+
+  WriteReg(0, OV_THRESH, 0x25, 1, FRMWRT_ALL_W); // Sets Over voltage protection to 4.25V
+  WriteReg(0, UV_THRESH, 0x24, 1, FRMWRT_ALL_W); // Sets Under voltage protection to 3.0V
+
+
+  WriteReg(0, OVUV_CTRL, 0x05, 1, FRMWRT_ALL_W); // Sets voltage controls
+  WriteReg(0, OTUT_CTRL, 0x05, 1, FRMWRT_ALL_W); // Sets temperature controls
+
+
+  // CONFIGURE THE MAIN ADC
+  WriteReg(0, ACTIVE_CELL, ACTIVECHANNELS - 6, 1, FRMWRT_ALL_W); // set all cells to active
+  WriteReg(0, ADC_CONF1, 0x04, 1, FRMWRT_ALL_W);                 // LPF_ON - LPF = 9ms
+
+  // CLEAR FAULTS AND UPDATE CUST_CRC
+  ResetAllFaults(0, FRMWRT_ALL_W); // CLEAR ALL FAULTS
+  // delay(100);                    // visual separation for logic analyzer
+
+  // START THE MAIN ADC
+  WriteReg(0, ADC_CTRL1, 0x1E, 1, FRMWRT_ALL_W); // continuous run and MAIN_GO and LPF_VCELL_EN and CS_DR = 1ms
+  WriteReg(0, ADC_CTRL3, 0x06, 1, FRMWRT_ALL_W); // continuous run and MAIN_GO and LPF_VCELL_EN and CS_DR = 1ms
 
 }

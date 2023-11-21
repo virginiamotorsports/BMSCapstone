@@ -562,8 +562,8 @@ int ReadReg(char bID, uint16_t wAddr, char * pData, char bLen, uint32_t dwTimeOu
         // sciEnableNotification(sciREG, SCI_RX_INT);
         // sciReceive(sciREG, (bLen + 6) * (TOTALBOARDS - 1), pData);
         Serial1.readBytes(pData, (bLen + 6) * (TOTALBOARDS - 1));
-        while(UART_RX_RDY == 0U && count>0) count--; /* Wait */
-        UART_RX_RDY = 0;
+        // while(UART_RX_RDY == 0U && count>0) count--; /* Wait */
+        // UART_RX_RDY = 0;
         bRes = (bLen + 6) * (TOTALBOARDS - 1);
     } else if (bWriteType == FRMWRT_ALL_R) {
         bRes = ReadFrameReq(bID, wAddr, bLen, bWriteType);
@@ -571,8 +571,8 @@ int ReadReg(char bID, uint16_t wAddr, char * pData, char bLen, uint32_t dwTimeOu
         // sciEnableNotification(sciREG, SCI_RX_INT);
         // sciReceive(sciREG, (bLen + 6) * TOTALBOARDS, pData);
         Serial1.readBytes(pData, (bLen + 6) * TOTALBOARDS);
-        while(UART_RX_RDY == 0U && count>0) count--; /* Wait */
-        UART_RX_RDY = 0;
+        // while(UART_RX_RDY == 0U && count>0) count--; /* Wait */
+        // UART_RX_RDY = 0;
         bRes = (bLen + 6) * TOTALBOARDS;
     } else {
         bRes = 0;
