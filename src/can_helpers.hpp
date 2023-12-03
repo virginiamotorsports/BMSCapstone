@@ -50,11 +50,9 @@ enum CAN_Msgs
     LAST_ITEM
 };
 
+
 const uint8_t message_data_width = LAST_ITEM - STATUS;
-char message_data[message_data_width][8];
-
-
-
+uint8_t message_data[message_data_width][8];
 
 
 //Methods to convert the integers into bytes to be sent via canbus
