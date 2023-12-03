@@ -13,7 +13,7 @@
  **
  ******************************************************************************/
 #include "bq79616.hpp"
-#define DEBUG 1
+#define DEBUG true
 
 
 //GLOBAL VARIABLES (use these to avoid stack overflows by creating too many function variables)
@@ -121,6 +121,61 @@ void HWRST79616(void) {
 //**********
 //END PINGS
 //**********
+
+
+void restart_chips(void){
+//   HWRST79616();
+//   delayMicroseconds((10000 + 520) * TOTALBOARDS); // 2.2ms from shutdown/POR to active mode + 520us till device can send wake tone, PER DEVICE
+
+  Wake79616();
+  delayMicroseconds((10000 + 520) * TOTALBOARDS); // 2.2ms from shutdown/POR to active mode + 520us till device can send wake tone, PER DEVICE
+
+  AutoAddress();
+  // AutoAddress2();
+  Serial.println("Autoaddress Completed");
+  
+  set_registers();
+}
+
+void set_registers(void){
+
+  WriteReg(0, FAULT_MSK2, 0x40, 1, FRMWRT_ALL_W); //OPTIONAL: MASK CUST_CRC SO CONFIG CHANGES DON'T FLAG A FAULT
+  WriteReg(0, FAULT_MSK1, 0xFFFE, 2, FRMWRT_ALL_W); // INITIAL B0 SILICON: MASK FAULT_PWR SO TSREF_UV doesn't flag a fault
+  ResetAllFaults(0, FRMWRT_ALL_W);
+
+  // ENABLE TSREF
+  WriteReg(0, CONTROL2, 0x01, 1, FRMWRT_ALL_W); // enable TSREF
+
+  // CONFIGURE GPIOS as temp inputs
+  WriteReg(0, GPIO_CONF1, 0x09, 1, FRMWRT_ALL_W); // GPIO1 and 2 as temp inputs
+  WriteReg(0, GPIO_CONF2, 0x09, 1, FRMWRT_ALL_W); // GPIO3 and 4 as temp inputs
+  WriteReg(0, GPIO_CONF3, 0x09, 1, FRMWRT_ALL_W); // GPIO5 and 6 as temp inputs
+  WriteReg(0, GPIO_CONF4, 0x09, 1, FRMWRT_ALL_W); // GPIO7 and 8 as temp inputs
+
+  WriteReg(0, OTUT_THRESH, 0xDA, 1, FRMWRT_ALL_W); // Sets OV thresh to 80% and UT thresh to 20% to meet rules
+
+
+  WriteReg(0, OV_THRESH, 0x25, 1, FRMWRT_ALL_W); // Sets Over voltage protection to 4.25V
+  WriteReg(0, UV_THRESH, 0x24, 1, FRMWRT_ALL_W); // Sets Under voltage protection to 3.0V
+
+
+  WriteReg(0, OVUV_CTRL, 0x05, 1, FRMWRT_ALL_W); // Sets voltage controls
+  WriteReg(0, OTUT_CTRL, 0x05, 1, FRMWRT_ALL_W); // Sets temperature controls
+
+
+  // CONFIGURE THE MAIN ADC
+  WriteReg(0, ACTIVE_CELL, ACTIVECHANNELS - 6, 1, FRMWRT_ALL_W); // set all cells to active
+  WriteReg(0, ADC_CONF1, 0x04, 1, FRMWRT_ALL_W);                 // LPF_ON - LPF = 9ms
+
+  // CLEAR FAULTS AND UPDATE CUST_CRC
+  ResetAllFaults(0, FRMWRT_ALL_W); // CLEAR ALL FAULTS
+  // delay(100);                    // visual separation for logic analyzer
+
+  // START THE MAIN ADC
+  WriteReg(0, ADC_CTRL1, 0x1E, 1, FRMWRT_ALL_W); // continuous run and MAIN_GO and LPF_VCELL_EN and CS_DR = 1ms
+  WriteReg(0, ADC_CTRL3, 0x06, 1, FRMWRT_ALL_W); // continuous run and MAIN_GO and LPF_VCELL_EN and CS_DR = 1ms
+
+}
 
 //**********************
 //AUTO ADDRESS SEQUENCE
@@ -580,26 +635,33 @@ int ReadReg(char bID, uint16_t wAddr, char * pData, char bLen, uint32_t dwTimeOu
     }
 
 //    CHECK IF CRC IS CORRECT
-   for(crc_i=0; crc_i<bRes; crc_i+=(bLen+6))
-   {
-       if(CRC16(&pData[crc_i], bLen+6)!=0)
-       {
-           printConsole("\n\rBAD CRC=%04X,i=%d,bLen=%d\n\r",(pData[crc_i+bLen+4]<<8|pData[crc_i+bLen+5]),crc_i,bLen);
-           PrintFrame(pData, bLen);
-       }
-   }
-   crc_i = 0;
-   currCRC = pData;
-   for(crc_i=0; crc_i<bRes; crc_i+=(bLen+6))
-   {
-    //    printConsole("%x",&currCRC);
-       if(CRC16(currCRC, bLen+6)!=0)
-       {
-           printConsole("\n\rBAD CRC=%04X,char=%d\n\r",(currCRC[bLen+4]<<8|currCRC[bLen+5]),crc_i);
-           PrintFrame(pData, bLen);
-       }
-       *currCRC+=(bLen+6);
-   }
+    bool bad = false;
+    for(crc_i=0; crc_i<bRes; crc_i+=(bLen+6))
+    {
+        if(CRC16(&pData[crc_i], bLen+6)!=0)
+        {
+            // printConsole("\n\rBAD CRC=%04X,i=%d,bLen=%d\n\r",(pData[crc_i+bLen+4]<<8|pData[crc_i+bLen+5]),crc_i,bLen);
+            // PrintFrame(pData, bLen);
+            bad = true;
+        }
+    }
+    crc_i = 0;
+    currCRC = pData;
+    for(crc_i=0; crc_i<bRes; crc_i+=(bLen+6))
+    {
+        //    printConsole("%x",&currCRC);
+        if(CRC16(currCRC, bLen+6)!=0)
+        {
+            // printConsole("\n\rBAD CRC=%04X,char=%d\n\r",(currCRC[bLen+4]<<8|currCRC[bLen+5]),crc_i);
+            // PrintFrame(pData, bLen);
+            bad = true;            
+        }
+        *currCRC+=(bLen+6);
+    }
+
+    if(bad){
+        restart_chips();
+    }
 
     return bRes;
 }

@@ -58,6 +58,8 @@ void CommSleepToActive(void);
 void CommReset(void);
 void AutoAddress();
 void AutoAddress2();
+void set_registers(void);
+void restart_chips(void);
 bool GetFaultStat();
 float Complement(uint16_t rawData, float multiplier);
 
