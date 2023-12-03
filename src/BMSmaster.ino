@@ -24,7 +24,7 @@
 #define SECRET_SSID "BMS_WIFI"
 #define SECRET_PASS "batteryboyz"
 
-
+IPAddress send_to_address(192, 168, 244, 2);
 
 ///////please enter your sensitive data in the Secret tab/arduino_secrets.h
 char ssid[] = SECRET_SSID;        // your network SSID (name)
@@ -33,7 +33,7 @@ int keyIndex = 0;                 // your network key index number (needed only 
 
 int led =  LED_BUILTIN;
 int status = WL_IDLE_STATUS;
-WiFiUDP udp_sender;
+
 char UDP_Buffer[200];
 struct BMS_status modules[6];
 // uint16_t cell_voltages[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -45,11 +45,13 @@ int32_t signed_val = 0;
 long double sr_val = 0;
 char response_frame[(16 * 2 + 6) * TOTALBOARDS];    // hold all 16 vcell*_hi/lo values
 char response_frame_current[(MAXcharS+6)]; //
+WiFiUDP udp;
 
 void setup()
 {
 
-  // WiFi.config(IPAddress(192,168,137,2), IPAddress(8,8,8,8), IPAddress(192,168,137,1), IPAddress(255,255,255,0));
+  WiFi.config(IPAddress(192,168,137,2), IPAddress(8,8,8,8), IPAddress(192,168,137,1), IPAddress(255,255,255,0));
+  status = WiFi.beginAP(ssid, pass);
 
   Serial.begin(9600);
   Serial1.begin(BAUDRATE, SERIAL_8N1);
@@ -94,7 +96,9 @@ void loop()
   // memcpy((void *)(msg_data + 4), &msg_cnt, sizeof(msg_cnt));
   // CanMsg msg(CAN_ID, sizeof(msg_data), msg_data);
 
-
+  udp.beginPacket(send_to_address, 10244);
+  udp.write(UDP_Buffer, sizeof(UDP_Buffer));
+  udp.endPacket();
 
   // RESET ITERATORS EACH LOOP
   i = 0;
