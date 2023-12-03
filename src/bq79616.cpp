@@ -13,6 +13,7 @@
  **
  ******************************************************************************/
 #include "bq79616.hpp"
+#define DEBUG 1
 
 
 //GLOBAL VARIABLES (use these to avoid stack overflows by creating too many function variables)
@@ -796,46 +797,50 @@ uint16_t volt2char(float volt)
 
 void PrintFrame(char arr[], int chars)
 {
-    int j = 0;
-    int k = 0;
-    printConsole("\n\r");
-    for(j = 0; j<TOTALBOARDS; j++)
-    {
-        int offset = j*(chars+6);
-        for(k = 0; k<(chars+6); k++)
-        {
-            printConsole("%02X ",arr[offset+k]);
-        }
+    if (DEBUG){
+        int j = 0;
+        int k = 0;
         printConsole("\n\r");
+        for(j = 0; j<TOTALBOARDS; j++)
+        {
+            int offset = j*(chars+6);
+            for(k = 0; k<(chars+6); k++)
+            {
+                printConsole("%02X ",arr[offset+k]);
+            }
+            printConsole("\n\r");
+        }
     }
 }
 
 
 unsigned printConsole(const char *_format, ...)
 {
-   char str[128];
-   int length = -1, k = 0;
+    if (DEBUG){
+        char str[128];
+        int length = -1, k = 0;
 
-    
-   va_list argList;
-   va_start( argList, _format );
+            
+        va_list argList;
+        va_start( argList, _format );
 
-   length = vsnprintf(str, sizeof(str), _format, argList);
+        length = vsnprintf(str, sizeof(str), _format, argList);
 
-   va_end( argList );
+        va_end( argList );
 
-//   if (length > 0)
-//   {
-//      for(k=0; k<length; k++)
-//      {
-//          HetUART1PutChar(str[k]);
-//      }
-//   }
-  Serial.print(str);
-//   Serial.print()
-  //  sciSend(scilinREG, length, str);
+        //   if (length > 0)
+        //   {
+        //      for(k=0; k<length; k++)
+        //      {
+        //          HetUART1PutChar(str[k]);
+        //      }
+        //   }
+        Serial.print(str);
+        //   Serial.print()
+        //  sciSend(scilinREG, length, str);
 
-   return (unsigned)length;
+        return (unsigned)length;
+    }
 }
 
 //***************************

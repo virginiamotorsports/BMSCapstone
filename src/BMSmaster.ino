@@ -1,32 +1,4 @@
 
-/* USER CODE BEGIN (0) */
-
-/*
- * CONNECTIONS BETWEEN BQ79616EVM AND LAUNCH XL2 (TMS570LS1224)::
- * bq79616EVM J3 pin 1 (GND)    -> LAUNCH XL2 J3 pin 2 (GND)
- * bq79616EVM J3 pin 2 (NFAULT) -> LAUNCH XL2 J2 pin 5 (PA7)
- * bq79616EVM J3 pin 3 (NC)     -> FLOAT
- * bq79616EVM J3 pin 4 (RX)     -> LAUNCH XL2 J2 pin 4 (UATX)
- * bq79616EVM J3 pin 5 (TX)     -> LAUNCH XL2 J2 pin 3 (UARX)
- * bq79616EVM J3 pin 6 (NC)     -> FLOAT
- *
- * RELEVANT MODIFIED FILES:
- * bq79606.h        must change TOTALBOARDS and MAXcharS here for code to function
- * bq79606.c        contains all relevant functions used in the sample code
- * notification.c   sets UART_RX_RDY and RTI_TIMEOUT when their respective interrupts happen
- * .dil/.hcg        used for generating the basic TMS570LS1224 code files, can be used to make changes to the microcontroller
- */
-
-/* USER CODE END */
-
-/* Include Files */
-
-// #include "sys_common.h"
-
-/* USER CODE BEGIN (1) */
-// #include <Arduino.h>
-// extern UART Serial1;
-
 #include "bq79616.hpp"
 #include <math.h>
 #include <stdio.h>
@@ -47,8 +19,7 @@
  */
 
 /* USER CODE BEGIN (2) */
-int UART_RX_RDY = 0;
-int RTI_TIMEOUT = 0;
+
 
 #define SECRET_SSID "BMS_WIFI"
 #define SECRET_PASS "batteryboyz"
@@ -64,19 +35,16 @@ int led =  LED_BUILTIN;
 int status = WL_IDLE_STATUS;
 WiFiUDP udp_sender;
 char UDP_Buffer[200];
-uint16_t cell_voltages[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+struct BMS_status modules[6];
+// uint16_t cell_voltages[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 int countTimer = 0;
 int i = 0;
 int cb = 0;
-long double current_accumulated = 0;
-long double time_accumulated = 0;
-long double coulomb_accumulated = 0;
 uint32_t raw_data = 0;
 int32_t signed_val = 0;
 long double sr_val = 0;
 char response_frame[(16 * 2 + 6) * TOTALBOARDS];    // hold all 16 vcell*_hi/lo values
 char response_frame_current[(MAXcharS+6)]; //
-bool faults[8] = {false, false, false, false, false, false, false, false};
 
 void setup()
 {
@@ -121,26 +89,12 @@ void setup()
 
 void loop()
 {
-  
-  // if(status == WL_CONNECTED){
-  //   int ret = udp_sender.beginPacket(IPAddress(192,168,137,1), 10000);
-  //   if(ret == 0)
-  //     Serial.println("Error beginning packet");
-  //   else{
-  //     udp_sender.write(UDP_Buffer, 100);
-  //     ret = udp_sender.endPacket();
-  //     if(ret == 0)
-  //       Serial.println("Error sending packet");
-  //   }
-  // }
-  // else{
-  //   Serial.print("Attempting to connect to SSID: ");
-  //   Serial.println(ssid);
-  //   // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
-  //   status = WiFi.begin(ssid, pass);
-  //   // wait 10 seconds for connection:
-  //   delay(1);
-  // }
+
+  // uint8_t const msg_data[] = {0xCA,0xFE,0,0,0,0,0,0};
+  // memcpy((void *)(msg_data + 4), &msg_cnt, sizeof(msg_cnt));
+  // CanMsg msg(CAN_ID, sizeof(msg_data), msg_data);
+
+
 
   // RESET ITERATORS EACH LOOP
   i = 0;
@@ -186,18 +140,42 @@ void loop()
 
   for (cb = 0; cb < (BRIDGEDEVICE == 1 ? TOTALBOARDS - 1 : TOTALBOARDS); cb++)
   {
-    printConsole("B%d:\t", TOTALBOARDS - cb - 1);
+    printConsole("B%d voltages:\t", TOTALBOARDS - cb - 1);
     for (i = 0; i < (ACTIVECHANNELS * 2); i += 2)
     {
       int boardcharStart = (ACTIVECHANNELS * 2 + 6) * cb;
       uint16_t rawData = (response_frame[boardcharStart + i + 4] << 8) | response_frame[boardcharStart + i + 5];
-      cell_voltages[int(i / 2)] = round(Complement(rawData, 0.00019073) * 100);
-      // float cellVoltage = Complement(rawData, 0.00019073);
-      printConsole("%hu ", cell_voltages[int(i / 2)]);
+      modules[cb].cell_voltages[int(i / 2)] = round(Complement(rawData, 0.00019073) * 100);
+      printConsole("%hu ", modules[cb].cell_voltages[int(i / 2)]);
     }
     printConsole("\n\r"); // newline per board
   }
 
+
+  // VOLTAGE SENSE (EVERY 9ms, so every 5 loops of 2ms each)
+  ReadReg(0, GPIO1_HI + (8 - CELL_TEMP_NUM) * 2, response_frame, CELL_TEMP_NUM * 2, 0, FRMWRT_ALL_R); // 494 us
+
+  for (cb = 0; cb < (BRIDGEDEVICE == 1 ? TOTALBOARDS - 1 : TOTALBOARDS); cb++)
+  {
+    printConsole("B%d temps:\t", TOTALBOARDS - cb - 1);
+    for (i = 0; i < (CELL_TEMP_NUM * 2); i += 2)
+    {
+      int boardcharStart = (ACTIVECHANNELS * 2 + 6) * cb;
+      uint16_t rawData = (response_frame[boardcharStart + i + 4] << 8) | response_frame[boardcharStart + i + 5];
+      modules[cb].cell_temps[int(i / 2)] = round(rawData * 0.00019073 * 100);
+      printConsole("%hu ", modules[cb].cell_temps[int(i / 2)]);
+    }
+    printConsole("\n\r"); // newline per board
+  }
+
+  
+  for (cb = 0; cb < (BRIDGEDEVICE == 1 ? TOTALBOARDS - 1 : TOTALBOARDS); cb++)
+  {
+    if(modules[cb].fault){
+      // AMS.fault = true;
+      break;
+    }
+  }
 
 
 }

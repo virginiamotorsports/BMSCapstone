@@ -56,6 +56,7 @@ char message_data[message_data_width][8];
 
 
 
+
 //Methods to convert the integers into bytes to be sent via canbus
 char* int_to_bytes(uint32_t input){
     char bytes[4] = {((input >> 24) & 0xFF), ((input >> 16) & 0xFF), ((input >> 8) & 0xFF), (input & 0xFF)};

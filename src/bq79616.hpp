@@ -34,7 +34,8 @@
 
 // User defines
 #define TOTALBOARDS 1       //boards in stack
-#define ACTIVECHANNELS 10   //channels to activate (incomplete, does not work right now)
+#define CELL_TEMP_NUM 8
+#define ACTIVECHANNELS 16   //channels to activate (incomplete, does not work right now)
 #define BRIDGEDEVICE 0   //
 #define MAXcharS (16*2)     //maximum number of chars to be read from the devices (for array creation)
 #define BAUDRATE 1000000    //device + uC baudrate
@@ -82,6 +83,15 @@ void PrintFrame(char arr[], int chars);
 unsigned printConsole(const char *_format, ...);
 
 uint16_t volt2char(float volt);
+
+
+struct BMS_status{
+    uint16_t cell_voltages[16];
+    uint16_t cell_temps[8];
+    uint8_t status;
+    bool fault;
+};
+
 // }
 #endif /* BQ79606_H_ */
 //EOF
