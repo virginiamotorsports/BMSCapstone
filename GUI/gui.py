@@ -29,7 +29,7 @@ class LiveGraph(FigureCanvas):
         if data[0][0] > 5:
             self.axes.set_ylim(10, 100)
         else:
-            self.axes.set_ylim(0, 6)
+            self.axes.set_ylim(3.1, 3.3)
         self.axes.set_xlabel("Time (s)")
         self.draw()
 
@@ -78,7 +78,7 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         layout = QGridLayout()
-        self.cell_voltage_graph = LiveGraph(6, 0, width=5, height=4)
+        self.cell_voltage_graph = LiveGraph(3.3, 3.1, width=5, height=4)
         self.cell_temperature_graph = LiveGraph(100, 20, width=5, height=4)
         self.ring_buffer_size = 10
         self.cell_display = BatteryCellWidget(num_cells=16)
@@ -134,11 +134,12 @@ class MainWindow(QMainWindow):
         data_format = "1H16H8H" # module number, cell voltages, cell temps
         unpacked_data = struct.unpack(data_format, data)
         
-        self.voltage_buffer = append_to_ring_buffer(self.voltage_buffer, np.array(unpacked_data[1:17], ndmin=2) / 100, self.ring_buffer_size)
-        self.temp_buffer = append_to_ring_buffer(self.temp_buffer, np.array(unpacked_data[17:25], ndmin=2) / 100, self.ring_buffer_size)
+        self.voltage_buffer = append_to_ring_buffer(self.voltage_buffer, np.array(unpacked_data[1:17], ndmin=2) / 1000, self.ring_buffer_size)
+        self.temp_buffer = append_to_ring_buffer(self.temp_buffer, np.array(unpacked_data[17:25], ndmin=2) / 10, self.ring_buffer_size)
         
         # Update the GUI elements
         cell_labels = [f"Cell {i}" for i in range(16)]
+        cell_labels.reverse()
         temp_labels = [f"Cell {i}" for i in range(8)]
         
         self.cell_voltage_graph.update_graph(self.voltage_buffer, self.diff, cell_labels)

@@ -15,6 +15,8 @@
 #include "bq79616.hpp"
 #define DEBUG true
 
+extern bool comm_fault;
+
 
 //GLOBAL VARIABLES (use these to avoid stack overflows by creating too many function variables)
 //avoid creating variables/arrays in functions, or you will run out of stack space quickly
@@ -37,6 +39,7 @@ char* currCRC;
 int crc_i = 0;
 uint16_t wCRC2 = 0xFFFF;
 int crc16_i = 0;
+static uint32_t lastReceiveTime;
 
 //******
 //PINGS
@@ -62,9 +65,6 @@ void Wake79616(void) {
 }
 
 void SD79616(void) {
-    // sciREG->GCR1 &= ~(1U << 7U); // put SCI into reset
-    // sciREG->PIO0 &= ~(1U << 2U); // disable transmit function - now a GPIO
-    // sciREG->PIO3 &= ~(1U << 2U); // set output to low
 
     // delayMicroseconds(9000); 
     Serial1.end();
@@ -81,10 +81,6 @@ void SD79616(void) {
 }
 
 void StA79616(void) {
-    // sciREG->GCR1 &= ~(1U << 7U); // put SCI into reset
-    // sciREG->PIO0 &= ~(1U << 2U); // disable transmit function - now a GPIO
-    // sciREG->PIO3 &= ~(1U << 2U); // set output to low
-
     // delayMicroseconds(250); 
     Serial1.end();
     delay(1);
@@ -127,14 +123,21 @@ void restart_chips(void){
 //   HWRST79616();
 //   delayMicroseconds((10000 + 520) * TOTALBOARDS); // 2.2ms from shutdown/POR to active mode + 520us till device can send wake tone, PER DEVICE
 
-  Wake79616();
-  delayMicroseconds((10000 + 520) * TOTALBOARDS); // 2.2ms from shutdown/POR to active mode + 520us till device can send wake tone, PER DEVICE
+    Wake79616();
+    delayMicroseconds((10000 + 520) * TOTALBOARDS); // 2.2ms from shutdown/POR to active mode + 520us till device can send wake tone, PER DEVICE
+    char zeros[7];
+    memset(zeros, 0, sizeof(zeros));
+    int result = ReadReg(0, FAULT_SUMMARY, zeros, 1, 0, FRMWRT_ALL_R); // try to read a register to trigger looping this method
+    if(result == -1)
+        return;
+    else
+        comm_fault = false;
+    delay(20);
+    AutoAddress();
+    // AutoAddress2();
+    Serial.println("Autoaddress Completed");
 
-  AutoAddress();
-  // AutoAddress2();
-  Serial.println("Autoaddress Completed");
-  
-  set_registers();
+    set_registers();
 }
 
 void set_registers(void){
@@ -148,9 +151,9 @@ void set_registers(void){
 
   // CONFIGURE GPIOS as temp inputs
   WriteReg(0, GPIO_CONF1, 0x09, 1, FRMWRT_ALL_W); // GPIO1 and 2 as temp inputs
-  WriteReg(0, GPIO_CONF2, 0x09, 1, FRMWRT_ALL_W); // GPIO3 and 4 as temp inputs
-  WriteReg(0, GPIO_CONF3, 0x09, 1, FRMWRT_ALL_W); // GPIO5 and 6 as temp inputs
-  WriteReg(0, GPIO_CONF4, 0x09, 1, FRMWRT_ALL_W); // GPIO7 and 8 as temp inputs
+//   WriteReg(0, GPIO_CONF2, 0x09, 1, FRMWRT_ALL_W); // GPIO3 and 4 as temp inputs
+//   WriteReg(0, GPIO_CONF3, 0x09, 1, FRMWRT_ALL_W); // GPIO5 and 6 as temp inputs
+//   WriteReg(0, GPIO_CONF4, 0x09, 1, FRMWRT_ALL_W); // GPIO7 and 8 as temp inputs
 
   WriteReg(0, OTUT_THRESH, 0xDA, 1, FRMWRT_ALL_W); // Sets OV thresh to 80% and UT thresh to 20% to meet rules
 
@@ -162,18 +165,27 @@ void set_registers(void){
   WriteReg(0, OVUV_CTRL, 0x05, 1, FRMWRT_ALL_W); // Sets voltage controls
   WriteReg(0, OTUT_CTRL, 0x05, 1, FRMWRT_ALL_W); // Sets temperature controls
 
+  WriteReg(0, BAL_CTRL1, 0x01, 1, FRMWRT_ALL_W); // Sets balance length to 10s
+  WriteReg(0, BAL_CTRL2, 0x31, 1, FRMWRT_ALL_W); // Sets enables auto balancing
+
 
   // CONFIGURE THE MAIN ADC
   WriteReg(0, ACTIVE_CELL, ACTIVECHANNELS - 6, 1, FRMWRT_ALL_W); // set all cells to active
   WriteReg(0, ADC_CONF1, 0x04, 1, FRMWRT_ALL_W);                 // LPF_ON - LPF = 9ms
+  WriteReg(0, COMM_TIMEOUT_CONF, 0x03, 1, FRMWRT_ALL_W);                 // puts the device to sleep when the AMS shuts off after 10s
+  
 
   // CLEAR FAULTS AND UPDATE CUST_CRC
   ResetAllFaults(0, FRMWRT_ALL_W); // CLEAR ALL FAULTS
   // delay(100);                    // visual separation for logic analyzer
 
   // START THE MAIN ADC
-  WriteReg(0, ADC_CTRL1, 0x1E, 1, FRMWRT_ALL_W); // continuous run and MAIN_GO and LPF_VCELL_EN and CS_DR = 1ms
+  WriteReg(0, ADC_CTRL1, 0x0E, 1, FRMWRT_ALL_W); // continuous run and MAIN_GO and LPF_VCELL_EN and CS_DR = 1ms
+  WriteReg(0, ADC_CTRL2, 0x00, 1, FRMWRT_ALL_W); // continuous run and MAIN_GO and LPF_VCELL_EN and CS_DR = 1ms
   WriteReg(0, ADC_CTRL3, 0x06, 1, FRMWRT_ALL_W); // continuous run and MAIN_GO and LPF_VCELL_EN and CS_DR = 1ms
+
+  WriteReg(0, FAULT_MSK1, 0x00, 1, FRMWRT_ALL_W); //OPTIONAL: MASK CUST_CRC SO CONFIG CHANGES DON'T FLAG A FAULT
+  WriteReg(0, FAULT_MSK2, 0x60, 1, FRMWRT_ALL_W); // INITIAL B0 SILICON: MASK FAULT_PWR SO TSREF_UV doesn't flag a fault
 
 }
 
@@ -601,8 +613,10 @@ int WriteBadFrame(char bID, uint16_t wAddr, char * pData, char bLen,
 int ReadReg(char bID, uint16_t wAddr, char * pData, char bLen, uint32_t dwTimeOut,
         char bWriteType) {
     // device address, register start address, char frame pointer to store data, data length, read type (single, broadcast, stack)
+
     bRes = 0;
     count = 500000;
+    lastReceiveTime = millis();
     if (bWriteType == FRMWRT_SGL_R) {
         ReadFrameReq(bID, wAddr, bLen, bWriteType);
         memset(pData, 0, sizeof(pData));
@@ -634,7 +648,16 @@ int ReadReg(char bID, uint16_t wAddr, char * pData, char bLen, uint32_t dwTimeOu
         bRes = 0;
     }
 
-//    CHECK IF CRC IS CORRECT
+    if(millis() - lastReceiveTime >= 900)
+    {
+        comm_fault = true;
+        return -1;
+    }
+    else{
+        comm_fault = false;
+    }
+
+    // CHECK IF CRC IS CORRECT
     bool bad = false;
     for(crc_i=0; crc_i<bRes; crc_i+=(bLen+6))
     {
@@ -903,6 +926,7 @@ unsigned printConsole(const char *_format, ...)
 
         return (unsigned)length;
     }
+    return -1;
 }
 
 //***************************

@@ -5,9 +5,9 @@ import time
 
 def generate_test_data():
     # Generate 16 unsigned shorts for cell voltages (0-65535)
-    voltages = ([random.randint(320, 420) for _ in range(16)])
+    voltages = ([random.randint(3200, 4200) for _ in range(16)])
     # Generate 8 unsigned shorts for temperatures (0-65535)
-    temperatures = [random.randint(2000, 10000) for _ in range(8)]
+    temperatures = [random.randint(200, 1000) for _ in range(8)]
     return voltages, temperatures
 
 def send_udp_packet(ip, port):
