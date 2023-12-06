@@ -100,6 +100,7 @@ void loop()
   if(comm_fault){
       // HWRST79616();
       // delay(200);
+      Serial.println("Communications Fault");
       restart_chips();
   }
   else{
@@ -141,13 +142,18 @@ void loop()
 
     for (uint16_t cb = 0; cb < (BRIDGEDEVICE == 1 ? TOTALBOARDS - 1 : TOTALBOARDS); cb++)
     {
-      printConsole("B%d voltages:\t", TOTALBOARDS - cb - 1);
+      printConsole("B%d voltages: ", TOTALBOARDS - cb - 1);
       for (int i = 0; i < ACTIVECHANNELS; i++)
       {
         int boardcharStart = (ACTIVECHANNELS * 2 + 6) * cb;
         raw_data = (((voltage_response_frame[boardcharStart + (i * 2) + 4] & 0xFF) << 8) | (voltage_response_frame[boardcharStart + (i * 2) + 5] & 0xFF));
         modules[cb].cell_voltages[i] = (uint16_t)(Complement(raw_data, 0.19073));
-        printConsole("%.3f ", modules[cb].cell_voltages[i] / 1000.0);
+        if(i != 15){
+          printConsole("%.3f, ", modules[cb].cell_voltages[i] / 1000.0);
+        }
+        else{
+          printConsole("%.3f", modules[cb].cell_voltages[i] / 1000.0);
+        }
       }
       printConsole("\n\r"); // newline per board
     }
@@ -157,7 +163,7 @@ void loop()
     uint16_t temp_voltage = 0;
     for (uint16_t cb = 0; cb < (BRIDGEDEVICE == 1 ? TOTALBOARDS - 1 : TOTALBOARDS); cb++)
     {
-      printConsole("B%d temps:\t", TOTALBOARDS - cb - 1);
+      printConsole("B%d temps: ", TOTALBOARDS - cb - 1);
       for (int i = 0; i < CELL_TEMP_NUM; i++)
       {
         int boardcharStart = (CELL_TEMP_NUM * 2 + 6) * cb;
@@ -170,7 +176,7 @@ void loop()
         else{
           modules[cb].cell_temps[i] = (uint16_t)(GET_TEMP(GET_RESISTANCE((temp_voltage / 1000.0))) * 10);
         }
-        printConsole("%.1f ", modules[cb].cell_temps[i] / 10.0);
+        printConsole("%.1f, ", modules[cb].cell_temps[i] / 10.0);
       }
       printConsole("\n\r"); // newline per board
     }
@@ -201,6 +207,7 @@ void loop()
   if(bms_fault || comm_fault || n_fault || OVUV_fault || OTUT_fault){
     digitalWrite(FAULT_PIN, LOW);
     Serial.println("Fault Detected");
+    // delay(5000);
   }
   else{
     digitalWrite(FAULT_PIN, HIGH);

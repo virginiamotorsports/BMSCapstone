@@ -22,7 +22,7 @@ def send_udp_packet(ip, port):
         print(f"Sent packet to {ip}:{port}")
 
         # Wait for 1 second before sending the next packet
-        # time.sleep(1)
+        time.sleep(1)
 
 if __name__ == "__main__":
     ip = "127.0.0.1"  # Replace with the desired IP

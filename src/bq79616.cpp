@@ -159,7 +159,7 @@ void set_registers(void){
 
 
   WriteReg(0, OV_THRESH, 0x25, 1, FRMWRT_ALL_W); // Sets Over voltage protection to 4.25V
-  WriteReg(0, UV_THRESH, 0x24, 1, FRMWRT_ALL_W); // Sets Under voltage protection to 3.0V
+  WriteReg(0, UV_THRESH, 0x10, 1, FRMWRT_ALL_W); // Sets Under voltage protection to 3.0V
 
 
   WriteReg(0, OVUV_CTRL, 0x05, 1, FRMWRT_ALL_W); // Sets voltage controls

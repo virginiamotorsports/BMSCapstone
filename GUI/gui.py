@@ -8,30 +8,8 @@ import socket
 import numpy as np
 import threading
 import struct
+from graph import *
 
-
-
-class LiveGraph(FigureCanvas):
-    def __init__(self, max, min, parent=None, width=5, height=4, dpi=100):
-        fig = Figure(figsize=(width, height), dpi=dpi)
-        self.axes = fig.add_subplot(111)
-        box = self.axes.get_position()
-        self.axes.set_position([box.x0, box.y0, box.width * 0.8, box.height])
-        FigureCanvas.__init__(self, fig)
-        self.setParent(parent)
-
-    def update_graph(self, data, differ, labels=""):
-        self.axes.clear()
-        rate = 1
-        for idx, item in enumerate(data):
-            self.axes.plot(-1 * differ, item)
-        self.axes.legend(labels, loc='center left', bbox_to_anchor=(1, 0.5))
-        if data[0][0] > 5:
-            self.axes.set_ylim(10, 100)
-        else:
-            self.axes.set_ylim(3.1, 3.3)
-        self.axes.set_xlabel("Time (s)")
-        self.draw()
 
 class BatteryCellWidget(QWidget):
     def __init__(self, num_cells=16):
@@ -78,7 +56,7 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         layout = QGridLayout()
-        self.cell_voltage_graph = LiveGraph(3.3, 3.1, width=5, height=4)
+        self.cell_voltage_graph = LiveGraph(3.3, 2.5, width=5, height=4)
         self.cell_temperature_graph = LiveGraph(100, 20, width=5, height=4)
         self.ring_buffer_size = 10
         self.cell_display = BatteryCellWidget(num_cells=16)
