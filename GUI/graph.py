@@ -20,8 +20,8 @@ class LiveGraph(FigureCanvas):
             self.axes.plot(-1 * differ, item)
         self.axes.legend(labels, loc='center left', bbox_to_anchor=(1, 0.5))
         if data[0][0] > 5:
-            self.axes.set_ylim(10, 100)
+            self.axes.set_ylim(20, 65)
         else:
-            self.axes.set_ylim(2.5, 3.3)
+            self.axes.set_ylim(2.8, 3.5)
         self.axes.set_xlabel("Time (s)")
         self.draw()

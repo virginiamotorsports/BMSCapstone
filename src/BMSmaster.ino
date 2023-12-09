@@ -181,7 +181,7 @@ void loop()
       printConsole("\n\r"); // newline per board
     }
 
-    // send_udp_packet();
+    send_udp_packet();
 
     send_can_data();
 
@@ -193,12 +193,12 @@ void loop()
     }
 
     if(OVUV_fault){
-      WriteReg(0, FAULT_RST1, 0x18, 1, FRMWRT_ALL_W); // starts balancing all cells
+      WriteReg(0, FAULT_RST1, 0x18, 1, FRMWRT_ALL_W); // reset fault
       
     }
 
     if(OTUT_fault){
-      WriteReg(0, FAULT_RST1, 0x60, 1, FRMWRT_ALL_W); // starts balancing all cells
+      WriteReg(0, FAULT_RST1, 0x60, 1, FRMWRT_ALL_W); // reset fault
       
     }
     
@@ -222,7 +222,7 @@ void send_udp_packet(void){
     memcpy((UDP_Buffer + sizeof(modules[cb].cell_voltages) + 2) , modules[cb].cell_temps, sizeof(modules[cb].cell_temps));
     int ret = udp.beginPacket(IPAddress(192,168,244,2), 10244); 
     if(ret == 0){
-      Serial.print("failed");
+      Serial.print("udp failed");
     }
     else{
       udp.write(UDP_Buffer, 50);
